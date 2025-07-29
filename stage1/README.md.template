@@ -1,0 +1,57 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}}
+
+## 📋 概要
+
+[プロジェクトの概要を記入してください]
+
+## 🚀 機能
+
+- [主要機能1]
+- [主要機能2]
+- [主要機能3]
+
+## 🛠️ 技術スタック
+
+- [使用する技術を記入]
+
+## 📦 インストール
+
+```bash
+# インストール手順を記入
+```
+
+## 🔧 使い方
+
+```bash
+# 基本的な使い方を記入
+```
+
+## 🧪 テスト
+
+このプロジェクトはTDD（テスト駆動開発）で開発されています。
+
+```bash
+# テスト実行コマンドを記入
+```
+
+## 🤝 コントリビューション
+
+1. このリポジトリをフォーク
+2. 新機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. TDDサイクルに従って開発
+4. 変更をコミット (`git commit -m 'Add amazing feature'`)
+5. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+6. プルリクエストを作成
+
+詳細は [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) を参照してください。
+
+## 📝 ライセンス
+
+[ライセンス情報を記入]
+
+## 🙏 謝辞
+
+- t_wadaさんのTDD手法に基づいています
+- Claude Codeを使用して効率的に開発されています

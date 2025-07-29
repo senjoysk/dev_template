@@ -1,0 +1,318 @@
+# 開発者ガイド
+
+{{PROJECT_NAME}}の開発者向け包括的ガイドです。
+
+## 🛠️ 開発環境セットアップ
+
+### 前提条件
+{{PREREQUISITES}}
+
+### 初回セットアップ
+```bash
+# 1. リポジトリクローン
+git clone <repository-url>
+cd {{PROJECT_DIR}}
+
+{{#if USE_NVM}}
+# 2. Node.js仮想環境設定
+nvm use  # .nvmrcファイルに基づいて適切なバージョンを使用
+{{/if}}
+
+# 3. 依存関係インストール
+{{INSTALL_COMMAND}}
+
+# 4. 環境変数設定
+cp .env.example .env
+# .envファイルを編集（API keys等を設定）
+
+{{#if DATABASE_SETUP}}
+# 5. データベース初期化
+{{DATABASE_INIT_COMMAND}}
+{{/if}}
+
+# 6. テスト実行（環境確認）
+{{TEST_COMMAND}}
+```
+
+### 開発ツール
+```bash
+{{DEVELOPMENT_TOOLS}}
+```
+
+---
+
+## 🏗️ アーキテクチャ理解
+
+### システム全体像
+
+{{ARCHITECTURE_DIAGRAM}}
+
+### レイヤー別責任
+
+{{LAYER_RESPONSIBILITIES}}
+
+---
+
+## 🔧 TDD開発フロー（必須）
+
+### t_wada式TDDサイクル
+
+#### 🔴 Red Phase - 失敗するテストを書く
+```bash
+# 1. 新機能のテストファイル作成
+{{CREATE_TEST_FILE}}
+
+# 2. テスト監視モード開始
+{{TEST_WATCH_COMMAND}}
+
+# 3. 失敗するテストを書く
+{{RED_PHASE_TEST_EXAMPLE}}
+```
+
+#### 🟢 Green Phase - テストを通す最小限の実装
+```{{PRIMARY_LANGUAGE}}
+{{GREEN_PHASE_IMPLEMENTATION}}
+```
+
+#### ♻️ Refactor Phase - リファクタリング
+```{{PRIMARY_LANGUAGE}}
+{{REFACTOR_PHASE_EXAMPLE}}
+```
+
+### TDD開発ルール
+1. **テストファースト**: 実装前に必ずテストを書く
+2. **小さなステップ**: 一度に一つのことだけ
+3. **三角測量**: 複数のテストケースから一般化
+4. **明白な実装**: シンプルで分かりやすいコード
+5. **適切なコメント管理**: TDDサイクルに応じたコメント更新
+
+---
+
+## 📋 コーディング規約
+
+### {{PRIMARY_LANGUAGE}}規約
+
+#### 1. インターフェース駆動設計
+```{{PRIMARY_LANGUAGE}}
+{{INTERFACE_DRIVEN_EXAMPLE}}
+```
+
+#### 2. エラーハンドリング
+```{{PRIMARY_LANGUAGE}}
+{{ERROR_HANDLING_EXAMPLE}}
+```
+
+#### 3. 依存関係注入
+```{{PRIMARY_LANGUAGE}}
+{{DEPENDENCY_INJECTION_EXAMPLE}}
+```
+
+### 命名規約
+
+{{NAMING_CONVENTIONS}}
+
+### コメント規約
+
+{{COMMENT_CONVENTIONS}}
+
+---
+
+## 🧪 テスト戦略
+
+### テスト種類と責任範囲
+
+#### 1. 単体テスト（Unit Tests）
+```{{PRIMARY_LANGUAGE}}
+{{UNIT_TEST_EXAMPLE}}
+```
+
+#### 2. 統合テスト（Integration Tests）
+```{{PRIMARY_LANGUAGE}}
+{{INTEGRATION_TEST_EXAMPLE}}
+```
+
+{{#if PERFORMANCE_TESTS}}
+#### 3. パフォーマンステスト
+```{{PRIMARY_LANGUAGE}}
+{{PERFORMANCE_TEST_EXAMPLE}}
+```
+{{/if}}
+
+### テストユーティリティ
+
+{{TEST_UTILITIES}}
+
+---
+
+## 🗂️ 新機能開発フロー
+
+### Step 1: 要件分析・設計
+
+#### 1. TODO リストでタスク分解
+```bash
+{{TODO_PLANNING}}
+```
+
+#### 2. インターフェース設計
+```{{PRIMARY_LANGUAGE}}
+{{INTERFACE_DESIGN_EXAMPLE}}
+```
+
+### Step 2: TDD実装
+
+#### 1. テストファースト
+```{{PRIMARY_LANGUAGE}}
+{{TEST_FIRST_EXAMPLE}}
+```
+
+#### 2. 最小実装（Green）
+```{{PRIMARY_LANGUAGE}}
+{{MINIMAL_IMPLEMENTATION}}
+```
+
+#### 3. リファクタリング（Refactor）
+```{{PRIMARY_LANGUAGE}}
+{{REFACTORING_EXAMPLE}}
+```
+
+### Step 3: 統合
+
+{{INTEGRATION_STEPS}}
+
+### Step 4: テスト・品質確認
+
+#### 1. テストカバレッジ確認
+```bash
+{{COVERAGE_COMMAND}}
+
+# 新機能のカバレッジが適切か確認
+# 目標: 各ファイル80%以上
+```
+
+#### 2. 統合テスト実行
+```bash
+{{INTEGRATION_TEST_COMMAND}}
+
+# すべての統合テストが通ることを確認
+```
+
+#### 3. 手動テスト
+```bash
+{{MANUAL_TEST_STEPS}}
+```
+
+---
+
+## 🔍 デバッグ・トラブルシューティング
+
+### ログ・デバッグ手法
+
+#### 1. 構造化ログ
+```{{PRIMARY_LANGUAGE}}
+{{STRUCTURED_LOGGING_EXAMPLE}}
+```
+
+#### 2. デバッグ環境設定
+```bash
+{{DEBUG_ENVIRONMENT}}
+```
+
+{{#if DATABASE_DEBUG}}
+#### 3. データベースデバッグ
+```{{PRIMARY_LANGUAGE}}
+{{DATABASE_DEBUG_EXAMPLE}}
+```
+{{/if}}
+
+### 一般的な問題と解決法
+
+{{COMMON_ISSUES_AND_SOLUTIONS}}
+
+---
+
+## 🚀 デプロイ・運用
+
+### 本番環境準備
+
+#### 1. 環境変数設定
+```bash
+{{PRODUCTION_ENV_SETUP}}
+```
+
+{{#if DATABASE_MIGRATION}}
+#### 2. データベース移行
+```bash
+{{DATABASE_MIGRATION_COMMANDS}}
+```
+{{/if}}
+
+#### 3. パフォーマンス監視設定
+```{{PRIMARY_LANGUAGE}}
+{{PERFORMANCE_MONITORING}}
+```
+
+### 監視・アラート
+
+#### 1. ヘルスチェック
+```{{PRIMARY_LANGUAGE}}
+{{HEALTH_CHECK_EXAMPLE}}
+```
+
+#### 2. エラー追跡
+```{{PRIMARY_LANGUAGE}}
+{{ERROR_TRACKING_EXAMPLE}}
+```
+
+---
+
+## 📈 継続的改善
+
+### パフォーマンス最適化
+
+#### 1. プロファイリング
+```bash
+{{PROFILING_COMMANDS}}
+```
+
+{{#if DATABASE_OPTIMIZATION}}
+#### 2. データベース最適化
+```sql
+{{DATABASE_OPTIMIZATION_QUERIES}}
+```
+{{/if}}
+
+#### 3. キャッシュ戦略改善
+```{{PRIMARY_LANGUAGE}}
+{{CACHE_OPTIMIZATION_EXAMPLE}}
+```
+
+### コード品質向上
+
+#### 1. 静的解析
+```bash
+{{STATIC_ANALYSIS_COMMANDS}}
+```
+
+#### 2. セキュリティ監査
+```bash
+{{SECURITY_AUDIT_COMMANDS}}
+```
+
+---
+
+## 🔗 関連リソース
+
+### 公式ドキュメント
+{{OFFICIAL_DOCS}}
+
+### プロジェクト内ドキュメント
+- [README.md](../README.md) - 全体概要・使用方法
+- [CLAUDE.md](../CLAUDE.md) - Claude Code開発指針
+{{ADDITIONAL_DOCS}}
+
+### 開発ツール設定
+{{TOOL_CONFIGS}}
+
+---
+
+**🎯 本開発者ガイドは、効率的で高品質な開発を実現するための完全なリファレンスです。TDD開発、アーキテクチャ理解、デバッグ手法を習得し、継続的にシステムを改善していきましょう。**

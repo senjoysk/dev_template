@@ -1,0 +1,75 @@
+#!/bin/sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# コード品質チェック
+echo "🔨 Pre-commit check: ビルド確認..."
+{{BUILD_COMMAND}}
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "🚨 コミットが阻止されました！"
+    echo "❌ ビルドに失敗しました。"
+    echo ""
+    exit 1
+fi
+
+# テスト実行と失敗分析
+echo "🧪 Pre-commit check: テスト実行と失敗分析..."
+{{TEST_ANALYSIS_SCRIPT}}
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "🚨 コミットが阻止されました！"
+    echo "❌ テストに失敗しました。"
+    echo "📋 test-reports/ディレクトリ内の詳細ログを確認してください。"
+    echo ""
+    exit 1
+fi
+
+echo "✅ 全テスト成功"
+
+{{#if ENABLE_SRP_CHECK}}
+# 🆕 SRP（単一責任原則）違反チェック
+echo "🔍 Pre-commit check: SRP違反チェック..."
+./scripts/code-review/srp-check.sh
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "🚨 コミットが阻止されました！"
+    echo "🛠️ SRP（単一責任原則）違反が検出されました。"
+    echo "📋 ファイル分割または例外指定（@SRP-EXCEPTION）後に再度コミットしてください。"
+    echo ""
+    exit 1
+fi
+
+echo "✅ SRP違反チェック通過"
+{{/if}}
+
+{{#if ENABLE_FILE_SIZE_CHECK}}
+# 🆕 ファイルサイズ監視チェック
+echo "🔍 Pre-commit check: ファイルサイズ監視..."
+./scripts/code-review/file-size-check.sh
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "🚨 コミットが阻止されました！"
+    echo "🛠️ 巨大ファイルが検出されました。"
+    echo "📋 ファイル分割後に再度コミットしてください。"
+    echo ""
+    exit 1
+fi
+
+echo "✅ ファイルサイズチェック通過"
+{{/if}}
+
+{{#if ENABLE_DI_CHECK}}
+# 依存性注入とany型使用のチェック
+./scripts/code-review/dependency-injection-check.sh
+{{/if}}
+
+{{#if ADDITIONAL_CHECKS}}
+# プロジェクト固有のチェック
+{{ADDITIONAL_CHECKS}}
+{{/if}}
+
+echo "✅ すべての品質チェックが完了しました"

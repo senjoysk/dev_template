@@ -1,0 +1,93 @@
+# 依存関係
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 環境変数
+.env
+.env.local
+.env.development
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+.env.fly
+
+# ビルド出力
+dist/
+build/
+
+# データベース
+data/
+*.db
+*.sqlite
+*.db.backup.*
+# SQLite WAL ファイル（テスト環境）
+test-data/*.db-shm
+test-data/*.db-wal
+src/__tests__/**/*.db-shm
+src/__tests__/**/*.db-wal
+
+# テスト結果ファイル
+test-reports/
+test-results.txt
+test-failures.txt
+test-failures-quick.txt
+test-summary.txt
+test-success.txt
+
+# ログファイル
+logs/
+*.log
+bot.log
+
+# IDEの設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+
+# TypeScriptキャッシュ
+*.tsbuildinfo
+
+# テストカバレッジレポート
+coverage/
+*.lcov
+
+# プロセス管理ファイル
+.bot.pid
+*.pid
+
+# 一時ファイル
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# テスト用Cookieファイル
+cookies.txt
+
+# macOS特有
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows特有
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Claude設定（ユーザー固有）
+.claude/
+
+# 環境固有の設定
+.env.staging
+
+# Git worktrees (作業用ディレクトリ)
+worktrees/
