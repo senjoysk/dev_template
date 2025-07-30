@@ -70,6 +70,9 @@ coverage/
 *.swo
 *~
 
+# テンプレート更新時の差分レポート
+.template_updates_*/
+
 # テスト用Cookieファイル
 cookies.txt
 
