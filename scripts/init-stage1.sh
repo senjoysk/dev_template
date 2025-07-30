@@ -156,29 +156,31 @@ save_diffs_for_review() {
     echo -e "${BLUE}📁 差分を保存中...${NC}"
     
     for file in "${SKIPPED_FILES[@]}"; do
+        # テンプレートファイルの場合はソースファイルを正しく特定
         local src_file="$TEMPLATE_DIR/stage1/$file"
+        local target_file="$file"
         
-        # テンプレートファイルの場合は特別処理
-        if [[ "$file" == *.template ]] || [[ "$src_file" == *.template ]]; then
-            src_file="${src_file%.template}.template"
+        # .templateファイルの場合
+        if [ ! -f "$src_file" ] && [ -f "${src_file}.template" ]; then
+            src_file="${src_file}.template"
         fi
         
         if [ -f "$src_file" ]; then
             # ディレクトリ構造を維持
-            mkdir -p "$diff_dir/$(dirname "$file")"
+            mkdir -p "$diff_dir/$(dirname "$target_file")"
             
             # 新バージョンを保存
             if [[ "$src_file" == *.template ]]; then
                 # テンプレートを処理してから保存
                 sed -e "s|{{PROJECT_NAME}}|$PROJECT_NAME|g" \
                     -e "s|{{PROJECT_DESCRIPTION}}|$PROJECT_NAME - Claude Codeで開発|g" \
-                    "$src_file" > "$diff_dir/${file}.new"
+                    "$src_file" > "$diff_dir/${target_file}.new"
             else
-                cp "$src_file" "$diff_dir/${file}.new"
+                cp "$src_file" "$diff_dir/${target_file}.new"
             fi
             
             # 差分を保存
-            diff -u "$file" "$diff_dir/${file}.new" > "$diff_dir/${file}.diff" 2>/dev/null || true
+            diff -u "$target_file" "$diff_dir/${target_file}.new" > "$diff_dir/${target_file}.diff" 2>/dev/null || true
         fi
     done
     

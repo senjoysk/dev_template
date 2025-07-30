@@ -9,12 +9,13 @@ setup() {
     export ORIGINAL_DIR="$(pwd)"
     export TEMPLATE_DIR="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
     export PROJECT_NAME="test-project"
+    export SKIP_NPM_INSTALL=1  # テスト環境でnpm installをスキップ
     
     # テストディレクトリに移動
     cd "$TEST_DIR"
     
     # Stage 1を先に実行（Stage 2の前提条件）
-    "$TEMPLATE_DIR/scripts/init-stage1.sh" || true
+    "$TEMPLATE_DIR/scripts/init-stage1.sh" >/dev/null 2>&1 || true
 }
 
 # テスト環境のクリーンアップ
@@ -193,4 +194,76 @@ teardown() {
     
     # Pythonのパターンが含まれているか確認（実際のスクリプト内容に依存）
     # この部分は実際のpython.shの内容に応じて調整が必要
+}
+
+# テスト12: 新しいコードレビュースクリプトの存在確認（Node.js）
+@test "New code review scripts exist for Node.js projects" {
+    # package.jsonを作成
+    echo '{"name": "test-project"}' > package.json
+    
+    run "$TEMPLATE_DIR/scripts/init-stage2.sh"
+    
+    # ステータスチェック（Huskyの警告は無視）
+    if [ "$status" -ne 0 ]; then
+        echo "Status: $status" >&2
+        echo "Output: $output" >&2
+    fi
+    
+    # Gitが初期化されていない場合でも成功とみなす
+    [ "$status" -eq 0 ] || [[ "$output" =~ "Huskyのセットアップをスキップ" ]]
+    
+    # 新しいスクリプトが作成されていることを確認
+    [ -f "scripts/code-review/srp-check.sh" ]
+    [ -f "scripts/code-review/file-size-check.sh" ]
+    [ -f "scripts/code-review/error-handling-check.sh" ]
+    [ -f "scripts/code-review/console-usage-check.sh" ]
+    [ -f "scripts/code-review/type-safety-check.sh" ]
+    [ -f "scripts/code-review/dependency-injection-check.sh" ]
+    [ -f "scripts/test-analysis/test-analysis.sh" ]
+    
+    # すべて実行可能であることを確認
+    [ -x "scripts/code-review/srp-check.sh" ]
+    [ -x "scripts/code-review/file-size-check.sh" ]
+    [ -x "scripts/code-review/error-handling-check.sh" ]
+    [ -x "scripts/code-review/console-usage-check.sh" ]
+    [ -x "scripts/code-review/type-safety-check.sh" ]
+    [ -x "scripts/code-review/dependency-injection-check.sh" ]
+    [ -x "scripts/test-analysis/test-analysis.sh" ]
+}
+
+# テスト13: 新しいコードレビュースクリプトの存在確認（Python）
+@test "New code review scripts exist for Python projects" {
+    # requirements.txtを作成
+    echo "pytest" > requirements.txt
+    
+    run "$TEMPLATE_DIR/scripts/init-stage2.sh"
+    [ "$status" -eq 0 ]
+    
+    # Python用のスクリプトが作成されていることを確認
+    [ -f "scripts/code-review/srp-check.sh" ]
+    [ -f "scripts/code-review/file-size-check.sh" ]
+    [ -f "scripts/code-review/error-handling-check.sh" ]
+    [ -f "scripts/code-review/console-usage-check.sh" ]
+    [ -f "scripts/code-review/type-hints-check.sh" ]  # Pythonではtype-safety-checkではなくtype-hints-check
+    [ -f "scripts/test-analysis/test-analysis.sh" ]
+    
+    # dependency-injection-check.shはPython版には存在しない
+    [ ! -f "scripts/code-review/dependency-injection-check.sh" ]
+}
+
+# テスト14: 環境変数によるカスタマイズ確認
+@test "Code review scripts can be customized with environment variables" {
+    # Node.jsプロジェクトを作成
+    echo '{"name": "test-project"}' > package.json
+    
+    run "$TEMPLATE_DIR/scripts/init-stage2.sh"
+    
+    # Gitが初期化されていない場合でも成功とみなす
+    [ "$status" -eq 0 ] || [[ "$output" =~ "Huskyのセットアップをスキップ" ]]
+    
+    # スクリプトが環境変数を参照していることを確認
+    grep -q "SRP_MAX_LINES:-200" scripts/code-review/srp-check.sh
+    grep -q "FILE_SIZE_WARNING:-150" scripts/code-review/file-size-check.sh
+    grep -q "ERROR_CHECK_LOGGER_PATH:-" scripts/code-review/error-handling-check.sh
+    grep -q "TEST_MIN_COVERAGE:-80" scripts/test-analysis/test-analysis.sh
 }

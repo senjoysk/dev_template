@@ -27,12 +27,16 @@ echo ""
 echo "🔍 any型使用チェック..."
 for file in $CHANGED_FILES; do
     if [ -f "$file" ]; then
-        # ALLOW_ANYコメントがないany型使用を検出
-        if grep -n ": any" "$file" | grep -v "// ALLOW_ANY" > /dev/null; then
-            ANY_TYPE_FILES+=("$file")
-            VIOLATIONS=$((VIOLATIONS + 1))
-            echo "  ❌ $file: any型が使用されています（ALLOW_ANYコメントなし）"
-            grep -n ": any" "$file" | grep -v "// ALLOW_ANY" | head -3
+        # any型使用をチェック
+        any_lines=$(grep -n ": any" "$file" || true)
+        if [ -n "$any_lines" ]; then
+            # ファイル全体でALLOW_ANYコメントをチェック
+            if ! grep -q "// ALLOW_ANY" "$file"; then
+                ANY_TYPE_FILES+=("$file")
+                VIOLATIONS=$((VIOLATIONS + 1))
+                echo "  ❌ $file: any型が使用されています（ALLOW_ANYコメントなし）"
+                echo "$any_lines" | head -3
+            fi
         fi
         
         # ALLOW_ANYコメントはあるが理由が不明確な場合

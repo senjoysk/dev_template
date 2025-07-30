@@ -77,39 +77,13 @@ for file in $CHANGED_FILES; do
             continue
         fi
         
-        # catch節を探してその内容を検証
-        while IFS= read -r line_num; do
-            # catch節の開始行番号を取得
-            CATCH_START=$line_num
-            
-            # catch節の内容を抽出（最大30行まで）
-            CATCH_CONTENT=$(sed -n "${CATCH_START},+30p" "$file" | awk '
-                /catch.*\{/ { in_catch=1; brace_count=1 }
-                in_catch {
-                    print
-                    gsub(/[^{}]/, "", $0)
-                    for(i=1; i<=length($0); i++) {
-                        c = substr($0, i, 1)
-                        if(c == "{") brace_count++
-                        if(c == "}") brace_count--
-                    }
-                    if(brace_count == 0) exit
-                }
-            ')
-            
-            # catch節内でthrow, return, logger/console のいずれかが使用されているか確認
-            if [ ! -z "$CATCH_CONTENT" ]; then
-                if ! echo "$CATCH_CONTENT" | grep -E "(throw|return|logger\.|console\.)" > /dev/null; then
-                    # 空のcatch節や、エラーハンドリングが不適切な可能性がある
-                    if ! echo "$CATCH_CONTENT" | grep -E "^[[:space:]]*\}" > /dev/null; then
-                        CATCH_WITHOUT_THROW_FILES+=("$file")
-                        VIOLATIONS=$((VIOLATIONS + 1))
-                        echo "  ⚠️  $file:$CATCH_START: catch節でエラーを握りつぶしている可能性があります"
-                        break
-                    fi
-                fi
-            fi
-        done < <(grep -n "catch.*{" "$file" | cut -d: -f1)
+        # catch節のパターンを検索（より簡単なアプローチ）
+        if grep -E "catch.*\{[[:space:]]*//.*無視|catch.*\{[[:space:]]*\}|catch.*\{[[:space:]]*$" "$file" > /dev/null; then
+            CATCH_WITHOUT_THROW_FILES+=("$file")
+            VIOLATIONS=$((VIOLATIONS + 1))
+            echo "  ⚠️  $file: エラーの握りつぶしが検出されました"
+            grep -n -A2 -B1 "catch.*{" "$file" | head -5
+        fi
     fi
 done
 
@@ -148,7 +122,7 @@ else
     fi
     
     if [ ${#CATCH_WITHOUT_THROW_FILES[@]} -gt 0 ]; then
-        echo "⚠️  エラー握りつぶしの可能性: ${#CATCH_WITHOUT_THROW_FILES[@]}件"
+        echo "⚠️  エラーの握りつぶし: ${#CATCH_WITHOUT_THROW_FILES[@]}件"
         for file in "${CATCH_WITHOUT_THROW_FILES[@]}"; do
             echo "   - $file"
         done

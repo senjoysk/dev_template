@@ -6,7 +6,7 @@
 echo "🔍 print()使用チェックを開始します..."
 
 # 設定可能な変数（プロジェクトでカスタマイズ可能）
-CHECK_DIR="${PRINT_CHECK_DIR:-src}"
+CHECK_DIR="${PRINT_CHECK_DIR:-.}"  # デフォルトをカレントディレクトリに変更
 EXCLUDE_PATTERNS="${PRINT_CHECK_EXCLUDE:-__pycache__|test_|_test\.py|conftest\.py|setup\.py}"
 
 # 一時ファイルを作成
@@ -25,7 +25,7 @@ fi
 # コメント行や文字列内のprintは除外
 find "$CHECK_DIR" -type f -name "*.py" | \
   grep -vE "$EXCLUDE_PATTERNS" | \
-  xargs grep -n "^[^#]*\bprint\s*(" 2>/dev/null | \
+  xargs grep -Hn "^[^#]*\bprint\s*(" 2>/dev/null | \
   grep -v '""".*print.*"""' | \
   grep -v "'''.*print.*'''" > "$TEMP_FILE" || true
 

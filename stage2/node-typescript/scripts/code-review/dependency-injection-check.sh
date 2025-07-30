@@ -32,14 +32,15 @@ echo "🔍 具象クラスへの直接依存チェック..."
 for file in $CHANGED_FILES; do
     if [ -f "$file" ]; then
         # constructorで具象クラスを受け取っているパターンを検出
-        # private service: ConcreteService のようなパターン
-        if grep -E "constructor.*\(.*:\s*[A-Z][a-zA-Z]*(?<!Interface|I[A-Z])[a-zA-Z]*" "$file" | grep -v "string\|number\|boolean\|Date\|Array\|Promise" > /dev/null; then
+        # private database: PostgresDatabase のようなパターン
+        concrete_deps=$(grep -E "constructor.*\(.*:\s*[A-Z][a-zA-Z]*" "$file" | grep -v -E "string|number|boolean|Date|Array|Promise|Interface|I[A-Z]" || true)
+        if [ -n "$concrete_deps" ]; then
             # インターフェースファイルは除外
             if ! [[ "$file" =~ interface|Interface ]]; then
                 CONCRETE_DEPENDENCY_FILES+=("$file")
                 VIOLATIONS=$((VIOLATIONS + 1))
                 echo "  ❌ $file: コンストラクタで具象クラスに依存しています"
-                grep -n -E "constructor.*\(.*:\s*[A-Z][a-zA-Z]*(?<!Interface|I[A-Z])" "$file" | head -3
+                echo "$concrete_deps" | head -3
             fi
         fi
     fi

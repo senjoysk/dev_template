@@ -105,8 +105,17 @@ main() {
 
 # 技術スタック決定
 if [ -n "$FORCE_STACK" ]; then
-    TECH_STACK="$FORCE_STACK"
-    echo -e "${BLUE}📦 技術スタック（指定）: ${TECH_STACK}${NC}"
+    # 有効なスタックかチェック
+    case "$FORCE_STACK" in
+        node-typescript|python|go|ruby|react)
+            TECH_STACK="$FORCE_STACK"
+            echo -e "${BLUE}📦 技術スタック（指定）: ${TECH_STACK}${NC}"
+            ;;
+        *)
+            TECH_STACK="generic"
+            echo -e "${RED}❌ 無効な技術スタック: ${FORCE_STACK}${NC}"
+            ;;
+    esac
 else
     TECH_STACK=$(detect_tech_stack)
     echo -e "${BLUE}📦 技術スタック（検出）: ${TECH_STACK}${NC}"
@@ -206,25 +215,41 @@ echo -e "${BLUE}📋 共通スクリプトをコピー中...${NC}"
 
 # コード品質チェックスクリプト
 mkdir -p scripts/code-review
-copy_file "$TEMPLATE_DIR/scripts/code-review/srp-check.sh" "scripts/code-review/srp-check.sh"
-copy_file "$TEMPLATE_DIR/scripts/code-review/file-size-check.sh" "scripts/code-review/file-size-check.sh"
-chmod +x scripts/code-review/*.sh
-
-# テスト分析スクリプト
 mkdir -p scripts/test-analysis
+
+# 技術スタックに基づいてスクリプトをコピー
 case "$TECH_STACK" in
     node-typescript|node-javascript|react)
-        copy_file "$TEMPLATE_DIR/scripts/test-analysis/node.sh" "scripts/test-analysis/test-analysis.sh"
+        # Node.js/TypeScript用スクリプト
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/srp-check.sh" "scripts/code-review/srp-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/file-size-check.sh" "scripts/code-review/file-size-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/error-handling-check.sh" "scripts/code-review/error-handling-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/console-usage-check.sh" "scripts/code-review/console-usage-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/type-safety-check.sh" "scripts/code-review/type-safety-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/dependency-injection-check.sh" "scripts/code-review/dependency-injection-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/test-analysis/test-analysis.sh" "scripts/test-analysis/test-analysis.sh"
         ;;
     python)
-        copy_file "$TEMPLATE_DIR/scripts/test-analysis/python.sh" "scripts/test-analysis/test-analysis.sh"
+        # Python用スクリプト
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/code-review/srp-check.sh" "scripts/code-review/srp-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/code-review/file-size-check.sh" "scripts/code-review/file-size-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/code-review/error-handling-check.sh" "scripts/code-review/error-handling-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/code-review/console-usage-check.sh" "scripts/code-review/console-usage-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/code-review/type-hints-check.sh" "scripts/code-review/type-hints-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/python/scripts/test-analysis/test-analysis.sh" "scripts/test-analysis/test-analysis.sh"
         ;;
     *)
-        # 汎用テンプレートを使用
-        copy_file "$TEMPLATE_DIR/scripts/test-analysis/test-analysis-template.sh" "scripts/test-analysis/test-analysis.sh"
+        # デフォルトはNode.js用を使用
+        echo -e "${YELLOW}⚠️  汎用スクリプトは未実装のため、Node.js用を使用します${NC}"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/srp-check.sh" "scripts/code-review/srp-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/file-size-check.sh" "scripts/code-review/file-size-check.sh"
+        copy_file "$TEMPLATE_DIR/stage2/node-typescript/scripts/test-analysis/test-analysis.sh" "scripts/test-analysis/test-analysis.sh"
         ;;
 esac
-chmod +x scripts/test-analysis/test-analysis.sh
+
+# スクリプトを実行可能にする
+chmod +x scripts/code-review/*.sh 2>/dev/null || true
+chmod +x scripts/test-analysis/*.sh 2>/dev/null || true
 
 # 技術スタック固有の設定
 case "$TECH_STACK" in
@@ -243,17 +268,27 @@ case "$TECH_STACK" in
             
             # Huskyをインストール
             if ! grep -q '"husky"' package.json; then
-                echo -e "${GREEN}📦 Huskyをインストール中...${NC}"
-                npm install --save-dev husky
+                if [ "${SKIP_NPM_INSTALL}" = "1" ]; then
+                    echo -e "${YELLOW}⚠️  テスト環境のためnpm installをスキップします${NC}"
+                else
+                    echo -e "${GREEN}📦 Huskyをインストール中...${NC}"
+                    npm install --save-dev husky
+                fi
             fi
             
-            # Huskyを初期化
-            if [ ! -d ".husky" ]; then
-                npx husky install
+            # Huskyを初期化（Gitリポジトリが必要）
+            if [ ! -d ".husky" ] && [ -d ".git" ]; then
+                if [ "${SKIP_NPM_INSTALL}" = "1" ]; then
+                    echo -e "${YELLOW}⚠️  テスト環境のためHusky初期化をスキップします${NC}"
+                else
+                    npx husky install
+                fi
+            elif [ ! -d ".git" ]; then
+                echo -e "${YELLOW}⚠️  Gitリポジトリが未初期化のためHuskyのセットアップをスキップします${NC}"
             fi
             
             # pre-commitフックを作成
-            if [ ! -f ".husky/pre-commit" ]; then
+            if [ ! -f ".husky/pre-commit" ] && [ -d ".git" ] && [ "${SKIP_NPM_INSTALL}" != "1" ]; then
                 npx husky add .husky/pre-commit "npm run build || echo 'No build script'"
                 
                 # pre-commitの内容を追加
