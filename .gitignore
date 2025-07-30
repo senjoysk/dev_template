@@ -1,0 +1,57 @@
+# 依存関係
+node_modules/
+vendor/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# ビルド成果物
+dist/
+build/
+out/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 環境ファイル
+.env
+.env.*
+!.env.example
+
+# ログ
+*.log
+logs/
+
+# テスト結果
+coverage/
+.coverage
+htmlcov/
+*.cover
+.pytest_cache/
+test-results/
+
+# 一時ファイル
+tmp/
+temp/
+*.tmp
+*.temp
+.template_updates_*/
+test_workspace/
+test_run/
+
+# OS固有
+Thumbs.db
+Desktop.ini
+
+# Git worktree
+worktrees/

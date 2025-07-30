@@ -3,6 +3,12 @@
 # Claude Code開発テンプレート Stage 1 初期化スクリプト
 # 技術スタック非依存の最小限セットアップ
 
+# テストモードでsourceされた場合は関数定義のみを読み込む
+if [ -n "$SOURCING_FOR_TEST" ]; then
+    # 関数定義のみを読み込み、メイン処理をスキップ
+    SKIP_MAIN=1
+fi
+
 set -e
 
 # スクリプトのディレクトリを取得
@@ -137,89 +143,6 @@ process_template() {
         "$src" > "$dest"
     ADDED_FILES+=("$dest")
 }
-
-echo -e "${BLUE}📋 Stage 1: 最小限のClaude Code環境をセットアップ中...${NC}"
-echo ""
-
-# CLAUDE.mdのコピー
-copy_file "$TEMPLATE_DIR/stage1/CLAUDE.md" "CLAUDE.md"
-
-# DEVELOPMENT_GUIDE.mdのコピー
-copy_file "$TEMPLATE_DIR/stage1/DEVELOPMENT_GUIDE.md" "DEVELOPMENT_GUIDE.md"
-
-# DEVELOPMENT_CHECKLIST.mdのコピー
-copy_file "$TEMPLATE_DIR/stage1/DEVELOPMENT_CHECKLIST.md" "DEVELOPMENT_CHECKLIST.md"
-
-# README.mdの処理
-process_template "$TEMPLATE_DIR/stage1/README.md.template" "README.md"
-
-# .gitignoreのコピー
-copy_file "$TEMPLATE_DIR/stage1/.gitignore" ".gitignore"
-
-# scripts/worktree.shのコピー
-mkdir -p scripts
-copy_file "$TEMPLATE_DIR/stage1/scripts/worktree.sh" "scripts/worktree.sh"
-chmod +x scripts/worktree.sh
-
-# Git初期化（まだ初期化されていない場合）
-if [ ! -d ".git" ]; then
-    echo ""
-    echo -e "${BLUE}📋 Gitリポジトリを初期化中...${NC}"
-    git init
-    echo -e "${GREEN}✅ Gitリポジトリを初期化しました${NC}"
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "${BLUE}📊 実行結果サマリー${NC}"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-if [ ${#ADDED_FILES[@]} -gt 0 ]; then
-    echo -e "${GREEN}✅ 追加されたファイル (${#ADDED_FILES[@]}件):${NC}"
-    for file in "${ADDED_FILES[@]}"; do
-        echo "   - $file"
-    done
-fi
-
-if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
-    echo ""
-    echo -e "${YELLOW}⚠️  スキップされたファイル (${#SKIPPED_FILES[@]}件):${NC}"
-    for i in "${!SKIPPED_FILES[@]}"; do
-        local file="${SKIPPED_FILES[$i]}"
-        # 対応する差分情報を探す
-        local diff_info="差分情報なし"
-        for diff_entry in "${SKIPPED_DIFFS[@]}"; do
-            if [[ "$diff_entry" == "$file|"* ]]; then
-                diff_info="${diff_entry#*|}"
-                break
-            fi
-        done
-        echo "   - $file (既存ファイル) [$diff_info]"
-    done
-fi
-
-if [ ${#ADDED_FILES[@]} -eq 0 ] && [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
-    echo ""
-    echo -e "${BLUE}ℹ️  すべてのファイルが既に存在するためスキップされました。${NC}"
-    echo "   プロジェクトは既にセットアップ済みのようです。"
-fi
-
-echo ""
-if [ ${#ADDED_FILES[@]} -gt 0 ]; then
-    echo -e "${GREEN}✅ Stage 1 の適用が完了しました！${NC}"
-    echo ""
-    echo -e "${BLUE}📚 セットアップ完了:${NC}"
-    echo "- CLAUDE.md: Claude Code用の開発ガイド"
-    echo "- DEVELOPMENT_GUIDE.md: 開発者向けガイド"
-    echo "- DEVELOPMENT_CHECKLIST.md: TDDチェックリスト"
-    echo "- README.md: プロジェクトの説明"
-    echo "- .gitignore: Git除外設定"
-    echo "- scripts/worktree.sh: Git Worktree管理"
-    echo ""
-    echo -e "${GREEN}🚀 Claude Codeで開発を始められます！${NC}"
-fi
-
-echo ""
 # 差分を保存する関数
 save_diffs_for_review() {
     if [ ${#SKIPPED_FILES[@]} -eq 0 ]; then
@@ -319,23 +242,101 @@ EOF
     echo -e "   ${BLUE}📊 差分ファイル: $diff_dir/*.diff${NC}"
 }
 
-# 実行結果サマリーの前に差分保存を実行
-save_diffs_for_review
+# メイン処理を実行する関数
+main() {
+    echo -e "${BLUE}🚀 Claude Code開発テンプレート Stage 1 初期化${NC}"
+    echo -e "${BLUE}📁 プロジェクト: ${PROJECT_NAME}${NC}"
+    echo ""
 
-echo ""
-echo -e "${BLUE}📋 次のステップ:${NC}"
-echo "1. CLAUDE.md と README.md をプロジェクトに合わせてカスタマイズ"
-echo "2. 技術スタックが決まったら Stage 2 を実行:"
-echo "   ${TEMPLATE_DIR}/scripts/init-stage2.sh"
-if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
-    echo "3. スキップされたファイルの差分を確認:"
-    echo "   最新の .template_updates_* ディレクトリを参照"
-fi
-echo ""
+    echo -e "${BLUE}📋 Stage 1: 最小限のClaude Code環境をセットアップ中...${NC}"
+    echo ""
 
-# 通知音を鳴らす（macOSの場合）
-if command -v play >/dev/null 2>&1; then
-    play /System/Library/Sounds/Glass.aiff vol 2 >/dev/null 2>&1 || true
-elif [ -f /System/Library/Sounds/Glass.aiff ]; then
-    afplay /System/Library/Sounds/Glass.aiff >/dev/null 2>&1 || true
+    # CLAUDE.mdのコピー
+    copy_file "$TEMPLATE_DIR/stage1/CLAUDE.md" "CLAUDE.md"
+
+    # DEVELOPMENT_GUIDE.mdのコピー
+    copy_file "$TEMPLATE_DIR/stage1/DEVELOPMENT_GUIDE.md" "DEVELOPMENT_GUIDE.md"
+
+    # DEVELOPMENT_CHECKLIST.mdのコピー
+    copy_file "$TEMPLATE_DIR/stage1/DEVELOPMENT_CHECKLIST.md" "DEVELOPMENT_CHECKLIST.md"
+
+    # README.mdの処理
+    process_template "$TEMPLATE_DIR/stage1/README.md.template" "README.md"
+
+    # .gitignoreのコピー
+    copy_file "$TEMPLATE_DIR/stage1/.gitignore" ".gitignore"
+
+    # scripts/worktree.shのコピー
+    mkdir -p scripts
+    copy_file "$TEMPLATE_DIR/stage1/scripts/worktree.sh" "scripts/worktree.sh"
+    chmod +x scripts/worktree.sh
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${BLUE}📊 実行結果サマリー${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if [ ${#ADDED_FILES[@]} -gt 0 ]; then
+        echo -e "${GREEN}✅ 追加されたファイル (${#ADDED_FILES[@]}件):${NC}"
+        for file in "${ADDED_FILES[@]}"; do
+            echo "   - $file"
+        done
+    fi
+
+    if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${YELLOW}⚠️  スキップされたファイル (${#SKIPPED_FILES[@]}件):${NC}"
+        for i in "${!SKIPPED_FILES[@]}"; do
+            local file="${SKIPPED_FILES[$i]}"
+            # 対応する差分情報を探す
+            local diff_info="差分情報なし"
+            for diff_entry in "${SKIPPED_DIFFS[@]}"; do
+                if [[ "$diff_entry" == "$file|"* ]]; then
+                    diff_info="${diff_entry#*|}"
+                    break
+                fi
+            done
+            echo "   - $file (既存ファイル) [$diff_info]"
+        done
+    fi
+
+    if [ ${#ADDED_FILES[@]} -eq 0 ] && [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${BLUE}ℹ️  すべてのファイルが既に存在するためスキップされました。${NC}"
+        echo "   プロジェクトは既にセットアップ済みのようです。"
+    fi
+
+    echo ""
+    if [ ${#ADDED_FILES[@]} -gt 0 ]; then
+        echo -e "${GREEN}✅ Stage 1 の適用が完了しました！${NC}"
+        echo ""
+        echo -e "${BLUE}📚 セットアップ完了:${NC}"
+        echo "- CLAUDE.md: Claude Code用の開発ガイド"
+        echo "- DEVELOPMENT_GUIDE.md: 開発者向けガイド"
+        echo "- DEVELOPMENT_CHECKLIST.md: TDDチェックリスト"
+        echo "- README.md: プロジェクトの説明"
+        echo "- .gitignore: Git除外設定"
+        echo "- scripts/worktree.sh: Git Worktree管理"
+        echo ""
+        echo -e "${GREEN}🚀 Claude Codeで開発を始められます！${NC}"
+    fi
+
+    # 差分を保存する関数を実行
+    save_diffs_for_review
+
+    echo ""
+    echo -e "${BLUE}📋 次のステップ:${NC}"
+    echo "1. CLAUDE.md と README.md をプロジェクトに合わせてカスタマイズ"
+    echo "2. 技術スタックが決まったら Stage 2 を実行:"
+    echo "   ${TEMPLATE_DIR}/scripts/init-stage2.sh"
+    if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+        echo "3. スキップされたファイルの差分を確認:"
+        echo "   最新の .template_updates_* ディレクトリを参照"
+    fi
+    echo ""
+}
+
+# テストモードでない場合のみメイン処理を実行
+if [ -z "$SKIP_MAIN" ]; then
+    main
 fi

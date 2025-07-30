@@ -3,6 +3,12 @@
 # Claude Code開発テンプレート Stage 2 初期化スクリプト
 # 技術スタック自動検出と固有設定の適用
 
+# テストモードでsourceされた場合は関数定義のみを読み込む
+if [ -n "$SOURCING_FOR_TEST" ]; then
+    # 関数定義のみを読み込み、メイン処理をスキップ
+    SKIP_MAIN=1
+fi
+
 set -e
 
 # スクリプトのディレクトリを取得
@@ -95,9 +101,11 @@ detect_tech_stack() {
     echo "$stack"
 }
 
-echo -e "${BLUE}🚀 Claude Code開発テンプレート Stage 2 初期化${NC}"
-echo -e "${BLUE}📁 プロジェクト: ${PROJECT_NAME}${NC}"
-echo ""
+# メイン処理を実行する関数
+main() {
+    echo -e "${BLUE}🚀 Claude Code開発テンプレート Stage 2 初期化${NC}"
+    echo -e "${BLUE}📁 プロジェクト: ${PROJECT_NAME}${NC}"
+    echo ""
 
 # 技術スタック決定
 if [ -n "$FORCE_STACK" ]; then
@@ -516,25 +524,24 @@ EOF
     echo -e "   ${BLUE}📊 差分ファイル: $diff_dir/*.diff${NC}"
 }
 
-# 実行結果サマリーの前に差分保存を実行
-save_diffs_for_review
+    # 実行結果サマリーの前に差分保存を実行
+    save_diffs_for_review
 
-echo -e "${BLUE}📋 CLAUDE.md と DEVELOPMENT_GUIDE.md の更新について${NC}"
-echo "技術スタック固有の情報を追加することをお勧めします:"
-echo "- ビルドコマンド"
-echo "- テストコマンド"
-echo "- 依存関係のインストール方法"
-echo "- デプロイ手順（該当する場合）"
-if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+    echo -e "${BLUE}📋 CLAUDE.md と DEVELOPMENT_GUIDE.md の更新について${NC}"
+    echo "技術スタック固有の情報を追加することをお勧めします:"
+    echo "- ビルドコマンド"
+    echo "- テストコマンド"
+    echo "- 依存関係のインストール方法"
+    echo "- デプロイ手順（該当する場合）"
+    if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+        echo ""
+        echo -e "${YELLOW}💡 スキップされたファイルの差分を確認:${NC}"
+        echo "   最新の .template_updates_* ディレクトリを参照"
+    fi
     echo ""
-    echo -e "${YELLOW}💡 スキップされたファイルの差分を確認:${NC}"
-    echo "   最新の .template_updates_* ディレクトリを参照"
-fi
-echo ""
+}
 
-# 通知音を鳴らす（macOSの場合）
-if command -v play >/dev/null 2>&1; then
-    play /System/Library/Sounds/Glass.aiff vol 2 >/dev/null 2>&1 || true
-elif [ -f /System/Library/Sounds/Glass.aiff ]; then
-    afplay /System/Library/Sounds/Glass.aiff >/dev/null 2>&1 || true
+# テストモードでない場合のみメイン処理を実行
+if [ -z "$SKIP_MAIN" ]; then
+    main
 fi

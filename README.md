@@ -247,6 +247,60 @@ $ ./scripts/init-stage2.sh
    - .nvmrc (既存ファイル) [差分なし]
 ```
 
+## 🧪 テスト
+
+スクリプトの動作を検証するためのテストスイートが用意されています。
+
+### Batsのインストール
+
+```bash
+# macOS (Homebrew)
+brew install bats-core
+
+# npm
+npm install -g bats
+
+# その他の方法
+# https://github.com/bats-core/bats-core#installation
+```
+
+### テストの実行
+
+```bash
+# すべてのテストを実行
+./scripts/run-tests.sh
+
+# 特定のテストのみ実行
+./scripts/run-tests.sh stage1
+./scripts/run-tests.sh stage2
+./scripts/run-tests.sh diff
+
+# 詳細モードで実行
+./scripts/run-tests.sh -v
+
+# TAP形式で出力
+./scripts/run-tests.sh -t
+```
+
+### テスト内容
+
+- **test_init_stage1.bats**: Stage 1初期化スクリプトのテスト
+  - 新規ファイル作成
+  - 既存ファイルのスキップ
+  - Git初期化
+  - 差分レポート生成
+
+- **test_init_stage2.bats**: Stage 2初期化スクリプトのテスト
+  - 技術スタック検出
+  - ファイルコピー
+  - Huskyセットアップ
+
+- **test_diff_functions.bats**: 差分機能の単体テスト
+  - get_diff_summary関数
+  - show_diff_preview関数
+  - copy_file関数
+  - process_template関数
+
 ## 💡 差分の手動マージ方法
 
 スキップされたファイルの更新を後から取り込みたい場合：
