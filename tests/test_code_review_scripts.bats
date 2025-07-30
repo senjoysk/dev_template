@@ -30,13 +30,13 @@ teardown() {
 
 # テスト1: srp-check.sh - 大きすぎるTypeScriptファイルを検出
 @test "srp-check.sh detects large TypeScript files" {
-    # 大きなファイルを作成（デフォルト200行以上）
+    # 大きなファイルを作成（デフォルト500行以上）
     cat > large.ts << 'EOF'
 // This is a large file
 class LargeClass {
 EOF
-    # 250行のダミーメソッドを追加
-    for i in {1..250}; do
+    # 600行のダミーメソッドを追加
+    for i in {1..600}; do
         echo "    method$i() { return $i; }" >> large.ts
     done
     echo "}" >> large.ts
@@ -52,7 +52,7 @@ EOF
     
     # 出力に警告が含まれることを確認
     [[ "$output" =~ "large.ts" ]]
-    [[ "$output" =~ "大きすぎるファイル" ]]
+    [[ "$output" =~ "ファイル行数超過" ]]
 }
 
 # テスト2: srp-check.sh - 環境変数でカスタマイズ可能
@@ -317,4 +317,226 @@ EOF
     
     [ "$status" -eq 1 ]
     [[ "$output" =~ "product.py" ]]
+}
+
+# ============================================================================
+# error-handling-duplication-check.sh のテスト
+# ============================================================================
+
+# テスト15: error-handling-duplication-check.sh - console.error直接使用を検出
+@test "error-handling-duplication-check.sh detects direct console.error usage" {
+    cat > duplicate-error.ts << 'EOF'
+try {
+    operation1();
+} catch (error) {
+    console.error('Operation failed:', error);
+}
+
+try {
+    operation2();
+} catch (error) {
+    console.error('Another error:', error);
+}
+EOF
+    
+    git add duplicate-error.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 0 ]  # 警告レベルなので成功扱い
+    [[ "$output" =~ "console.error" ]]
+    [[ "$output" =~ "logger.error" ]]
+}
+
+# テスト16: error-handling-duplication-check.sh - 統一エラーハンドラー未使用を検出
+@test "error-handling-duplication-check.sh detects missing unified error handler" {
+    cat > no-handler.ts << 'EOF'
+async function process() {
+    try {
+        await doSomething();
+    } catch (error) {
+        throw new Error('Failed');
+    }
+}
+EOF
+    
+    git add no-handler.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "統一エラーハンドラー未使用" ]]
+    [[ "$output" =~ "withErrorHandling" ]]
+}
+
+# テスト17: error-handling-duplication-check.sh - 統一ハンドラー使用時は問題なし
+@test "error-handling-duplication-check.sh passes with unified handler" {
+    cat > good-handler.ts << 'EOF'
+const result = await withErrorHandling(async () => {
+    return await doSomething();
+});
+EOF
+    
+    git add good-handler.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ ! "$output" =~ "good-handler.ts" ]]
+}
+
+# ============================================================================
+# layer-separation-check.sh のテスト
+# ============================================================================
+
+# テスト18: layer-separation-check.sh - サービス層でのDB直接アクセスを検出
+@test "layer-separation-check.sh detects direct DB access in service layer" {
+    cat > userService.ts << 'EOF'
+import { Database } from 'sqlite3';
+
+export class UserService {
+    async getUser(id: string) {
+        const db = new Database();
+        return db.get('SELECT * FROM users WHERE id = ?', id);
+    }
+}
+EOF
+    
+    git add userService.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/layer-separation-check.sh"
+    
+    # サービス層のファイルでDB直接アクセスがある場合は違反
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "データベース直接操作" ]] || [[ "$output" =~ "SQLクエリ直接実行" ]]
+    [[ "$output" =~ "userService.ts" ]]
+}
+
+# テスト19: layer-separation-check.sh - fetch直接使用を検出
+@test "layer-separation-check.sh detects direct fetch usage" {
+    cat > apiService.ts << 'EOF'
+export class ApiService {
+    async getData() {
+        const response = await fetch('https://api.example.com/data');
+        return response.json();
+    }
+}
+EOF
+    
+    git add apiService.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/layer-separation-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "HTTP/API直接呼び出し" ]]
+}
+
+# テスト20: layer-separation-check.sh - 例外許可コメントを尊重
+@test "layer-separation-check.sh respects ALLOW_LAYER_VIOLATION comments" {
+    cat > configService.ts << 'EOF'
+export class ConfigService {
+    // ALLOW_LAYER_VIOLATION: 設定読み込みは直接アクセスが必要
+    async loadConfig() {
+        const fs = require('fs');
+        return fs.readFileSync('config.json');
+    }
+}
+EOF
+    
+    git add configService.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/layer-separation-check.sh"
+    
+    # configServiceはサービス層のファイルとして検出され、例外許可により成功
+    [ "$status" -eq 0 ]
+    # 例外許可の表示があるか、検出されないか
+    [[ "$output" =~ "例外許可" ]] || [[ "$output" =~ "問題なし" ]]
+}
+
+# ============================================================================
+# todo-comment-check.sh のテスト
+# ============================================================================
+
+# テスト21: todo-comment-check.sh - TODOコメントを検出
+@test "todo-comment-check.sh detects TODO comments" {
+    cat > with-todo.ts << 'EOF'
+function process() {
+    // TODO: エラーハンドリングを追加
+    doSomething();
+    
+    // FIXME: パフォーマンス問題を修正
+    heavyOperation();
+}
+EOF
+    
+    git add with-todo.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/todo-comment-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "TODO" ]]
+    [[ "$output" =~ "FIXME" ]]
+    [[ "$output" =~ "with-todo.ts" ]]
+}
+
+# テスト22: todo-comment-check.sh - ALLOW_TODOコメントを尊重
+@test "todo-comment-check.sh respects ALLOW_TODO comments" {
+    cat > allowed-todo.ts << 'EOF'
+// ALLOW_TODO: v2.0で実装予定
+// TODO: 新機能を追加
+function futureFeature() {
+    return null;
+}
+EOF
+    
+    git add allowed-todo.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/todo-comment-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "例外許可" ]]
+}
+
+# テスト23: todo-comment-check.sh - TodoクラスなどTODO機能は除外
+@test "todo-comment-check.sh excludes TODO feature implementations" {
+    cat > todo-feature.ts << 'EOF'
+export class TodoService {
+    createTodo(title: string): Todo {
+        return new Todo(title);
+    }
+}
+
+interface TodoTask {
+    id: string;
+    title: string;
+}
+EOF
+    
+    git add todo-feature.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/todo-comment-check.sh"
+    
+    # TODO機能の実装は検出されないはず
+    [ "$status" -eq 0 ]
+    [[ ! "$output" =~ "違反" ]] || [[ ! "$output" =~ "todo-feature.ts" ]]
+}
+
+# テスト24: todo-comment-check.sh - Python版も動作確認
+@test "todo-comment-check.sh Python version works correctly" {
+    cat > with-todo.py << 'EOF'
+def process():
+    # TODO: Add error handling
+    do_something()
+    
+    # FIXME: Performance issue
+    heavy_operation()
+EOF
+    
+    git add with-todo.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/todo-comment-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "TODO" ]]
+    [[ "$output" =~ "FIXME" ]]
 }

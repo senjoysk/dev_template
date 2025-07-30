@@ -262,7 +262,7 @@ teardown() {
     [ "$status" -eq 0 ] || [[ "$output" =~ "Huskyのセットアップをスキップ" ]]
     
     # スクリプトが環境変数を参照していることを確認
-    grep -q "SRP_MAX_LINES:-200" scripts/code-review/srp-check.sh
+    grep -q "SRP_MAX_LINES:-500" scripts/code-review/srp-check.sh
     grep -q "FILE_SIZE_WARNING:-150" scripts/code-review/file-size-check.sh
     grep -q "ERROR_CHECK_LOGGER_PATH:-" scripts/code-review/error-handling-check.sh
     grep -q "TEST_MIN_COVERAGE:-80" scripts/test-analysis/test-analysis.sh
