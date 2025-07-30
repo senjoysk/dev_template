@@ -85,10 +85,6 @@ detect_tech_stack() {
     elif [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
         stack="python"
     
-    # Go検出
-    elif [ -f "go.mod" ]; then
-        stack="go"
-    
     # Ruby検出
     elif [ -f "Gemfile" ]; then
         stack="ruby"
@@ -223,9 +219,6 @@ case "$TECH_STACK" in
     python)
         copy_file "$TEMPLATE_DIR/scripts/test-analysis/python.sh" "scripts/test-analysis/test-analysis.sh"
         ;;
-    go)
-        copy_file "$TEMPLATE_DIR/scripts/test-analysis/go.sh" "scripts/test-analysis/test-analysis.sh"
-        ;;
     *)
         # 汎用テンプレートを使用
         copy_file "$TEMPLATE_DIR/scripts/test-analysis/test-analysis-template.sh" "scripts/test-analysis/test-analysis.sh"
@@ -333,12 +326,6 @@ EOF
             echo -e "${BLUE}💡 pre-commitを使用するには: pip install pre-commit && pre-commit install${NC}"
         fi
         ;;
-        
-    go)
-        echo ""
-        echo -e "${BLUE}📋 Go環境の設定中...${NC}"
-        # Go固有の設定があればここに追加
-        ;;
 esac
 
 # CLAUDE.mdとDEVELOPMENT_GUIDE.mdの更新案内
@@ -426,9 +413,6 @@ save_diffs_for_review() {
         elif [ -f "$TEMPLATE_DIR/stage2/python/$file" ]; then
             src_file="$TEMPLATE_DIR/stage2/python/$file"
             stage="stage2/python"
-        elif [ -f "$TEMPLATE_DIR/stage2/go/$file" ]; then
-            src_file="$TEMPLATE_DIR/stage2/go/$file"
-            stage="stage2/go"
         elif [ -f "$TEMPLATE_DIR/scripts/code-review/$(basename "$file")" ] && [[ "$file" == scripts/code-review/* ]]; then
             src_file="$TEMPLATE_DIR/scripts/code-review/$(basename "$file")"
             stage="scripts/code-review"
@@ -440,9 +424,6 @@ save_diffs_for_review() {
                     ;;
                 python)
                     src_file="$TEMPLATE_DIR/scripts/test-analysis/python.sh"
-                    ;;
-                go)
-                    src_file="$TEMPLATE_DIR/scripts/test-analysis/go.sh"
                     ;;
                 *)
                     src_file="$TEMPLATE_DIR/scripts/test-analysis/test-analysis-template.sh"
