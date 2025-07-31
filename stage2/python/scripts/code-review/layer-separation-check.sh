@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# layer-separation-check.sh
+# layer-separation-check.sh - Python版
 # ビジネスロジックとインフラロジック分離のチェックスクリプト
 # サービス層でのDB/API直接使用を検出
 
@@ -18,11 +18,11 @@ echo -e "${BLUE}🔍 レイヤー分離チェックを開始...${NC}"
 # エラーカウンタ
 ERROR_COUNT=0
 
-# チェック対象のファイル（変更されたTypeScript/JavaScriptファイルのみ）
-CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(tsx?|jsx?)$' | grep -v '\.d\.ts$' | grep -v '__tests__' | grep -v '.test.' | grep -v '.spec.')
+# チェック対象のファイル（変更されたPythonファイルのみ）
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.py$' | grep -v '__pycache__' | grep -v 'test_' | grep -v '_test.py' | grep -v 'conftest.py')
 
 if [ -z "$CHANGED_FILES" ]; then
-    echo "✅ チェック対象のファイルがありません"
+    echo "✅ チェック対象のPythonファイルがありません"
     exit 0
 fi
 
@@ -36,36 +36,43 @@ EXCLUDED_FILES=(
 # 禁止パターンの定義
 FORBIDDEN_PATTERNS_LIST=(
   # データベース直接操作の検出
-  "sqlite3|Database|db\."
-  "query\(|execute\(|run\(|all\(|get\("
-  "prepare\(|transaction\("
+  "sqlite3|psycopg2|pymongo|mysql\.connector"
+  "\.execute\(|\.executemany\(|\.fetchone\(|\.fetchall\("
+  "\.commit\(|\.rollback\(|\.cursor\("
+  
+  # ORM直接操作（サービス層での使用を制限）
+  "\.save\(|\.delete\(|\.create\(|\.update\("
+  "\.objects\.filter|\.objects\.get|\.objects\.all"
   
   # HTTP/API直接呼び出しの検出
-  "fetch\(|axios|got|request\("
-  "http\.|https\."
-  
-  # Discord API直接操作（除外対象以外）
-  "channel\.messages\.fetch|messages\.fetch"
+  "requests\.|urllib\.|httpx\.|aiohttp\."
+  "urlopen\(|Request\("
   
   # ファイルシステム直接操作
-  "fs\.|readFile|writeFile|mkdir"
+  "open\(.*['\"]r['\"]|open\(.*['\"]w['\"]|open\(.*['\"]a['\"]"
+  "os\.path\.|os\.remove|os\.mkdir|shutil\."
+  "pathlib\.Path"
 )
 
 FORBIDDEN_DESCRIPTIONS=(
-  "データベース直接操作"
+  "データベースモジュール直接使用"
   "SQLクエリ直接実行"
-  "データベーストランザクション直接操作"
-  "HTTP/API直接呼び出し"
-  "HTTP/HTTPS直接利用"
-  "Discord API直接操作"
+  "トランザクション直接操作"
+  "ORM直接操作"
+  "ORMクエリ直接実行"
+  "HTTP/APIライブラリ直接使用"
+  "URL直接操作"
+  "ファイル直接操作"
   "ファイルシステム直接操作"
+  "pathlib直接使用"
 )
 
 # 許可される例外パターン（コメント付きの場合は許可）
 ALLOWED_EXCEPTION_COMMENTS=(
-  "// ALLOW_LAYER_VIOLATION:"
-  "// ALLOW_DB_ACCESS:"
-  "// ALLOW_API_ACCESS:"
+  "# ALLOW_LAYER_VIOLATION:"
+  "# ALLOW_DB_ACCESS:"
+  "# ALLOW_API_ACCESS:"
+  "# ALLOW_FILE_ACCESS:"
 )
 
 # ファイルチェック関数
@@ -83,11 +90,19 @@ check_file() {
   done
   
   # サービス層のファイルのみをチェック対象とする
-  if [[ "$file_path" != *"service"* && "$file_path" != *"Service"* ]]; then
+  # repository、dao、client、utilsなどのインフラ層は除外
+  if [[ "$file_path" =~ (repository|dao|client|utils|migrations|models|db|database) ]]; then
     return 0
   fi
   
-  echo -e "${BLUE}🔍 チェック中: $file_name${NC}"
+  # サービス層、ハンドラー層、ビジネスロジック層をチェック
+  if [[ "$file_path" =~ (service|handler|business|usecase|domain) ]] || \
+     [[ "$file_path" =~ (views|controllers|api) ]]; then
+    echo -e "${BLUE}🔍 チェック中: $file_name${NC}"
+  else
+    # 明確にどの層か判断できない場合もチェック
+    echo -e "${BLUE}🔍 チェック中: $file_name${NC}"
+  fi
   
   # 各禁止パターンをチェック
   for i in "${!FORBIDDEN_PATTERNS_LIST[@]}"; do
@@ -103,6 +118,11 @@ check_file() {
       while IFS= read -r line; do
         local line_num=$(echo "$line" | cut -d: -f1)
         local content=$(echo "$line" | cut -d: -f2-)
+        
+        # import文は別扱い（importは問題ないが、使用箇所をチェック）
+        if [[ "$content" =~ ^[[:space:]]*import|^[[:space:]]*from ]]; then
+          continue
+        fi
         
         # 同じ行または前の行に例外コメントがあるかチェック
         for comment in "${ALLOWED_EXCEPTION_COMMENTS[@]}"; do
@@ -150,10 +170,11 @@ if [[ $ERROR_COUNT -eq 0 ]]; then
 else
   echo -e "${RED}❌ レイヤー分離違反: $ERROR_COUNT 件の問題が発見されました${NC}"
   echo -e "\n${YELLOW}🔧 修正方法:${NC}"
-  echo -e "1. データベースアクセスはリポジトリインターフェース経由で実行"
-  echo -e "2. API呼び出しは専用クライアント経由で実行"
-  echo -e "3. 直接アクセスが必要な場合は適切な例外コメントを追加"
-  echo -e "   例: // ALLOW_DB_ACCESS: 設定読み込みのため"
-  echo -e "\n💡 レイヤー分離は保守性と テスタビリティの向上に重要です"
+  echo -e "1. データベースアクセスはリポジトリクラス経由で実行"
+  echo -e "2. API呼び出しは専用クライアントクラス経由で実行"
+  echo -e "3. ファイル操作は専用のファイルサービス経由で実行"
+  echo -e "4. 直接アクセスが必要な場合は適切な例外コメントを追加"
+  echo -e "   例: # ALLOW_DB_ACCESS: マイグレーションスクリプトのため"
+  echo -e "\n💡 レイヤー分離は保守性とテスタビリティの向上に重要です"
   exit 1
 fi

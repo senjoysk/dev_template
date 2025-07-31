@@ -100,11 +100,11 @@ EOF
 # file-size-check.sh のテスト
 # ============================================================================
 
-# テスト4: file-size-check.sh - 警告レベルのファイルを検出
+# テスト4: file-size-check.sh - 監視対象レベルのファイルを検出
 @test "file-size-check.sh detects warning level files" {
-    # 160行のファイルを作成（デフォルト警告は150行）
+    # 650行のファイルを作成（デフォルトWARNING_FILE_LINES=600行）
     echo "// Test file" > medium.ts
-    for i in {1..160}; do
+    for i in {1..650}; do
         echo "const line$i = $i;" >> medium.ts
     done
     
@@ -114,15 +114,15 @@ EOF
     
     # 警告は出るが終了コードは0
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "⚠️" ]]
+    [[ "$output" =~ "📋" ]]  # 監視対象
     [[ "$output" =~ "medium.ts" ]]
 }
 
-# テスト5: file-size-check.sh - エラーレベルのファイルを検出
-@test "file-size-check.sh detects error level files" {
-    # 350行のファイルを作成（デフォルトエラーは300行）
-    echo "// Large file" > huge.ts
-    for i in {1..350}; do
+# テスト5: file-size-check.sh - 巨大ファイルレベルのファイルを検出
+@test "file-size-check.sh detects huge level files" {
+    # 1600行のファイルを作成（デフォルトHUGE_FILE_LINES=1500行）
+    echo "// Huge file" > huge.ts
+    for i in {1..1600}; do
         echo "const line$i = $i;" >> huge.ts
     done
     
@@ -132,9 +132,9 @@ EOF
     
     # エラーで終了コード1
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "❌" ]]
+    [[ "$output" =~ "🚨" ]]  # 巨大ファイル
     [[ "$output" =~ "huge.ts" ]]
-    [[ "$output" =~ "詳細分析" ]]
+    [[ "$output" =~ "巨大ファイル" ]]
 }
 
 # ============================================================================
@@ -539,4 +539,248 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" =~ "TODO" ]]
     [[ "$output" =~ "FIXME" ]]
+}
+
+# ============================================================================
+# file-size-check.sh の新しい行数ベーステスト
+# ============================================================================
+
+# テスト25: file-size-check.sh - 大型ファイルレベルの検出
+@test "file-size-check.sh detects large files" {
+    # 850行のファイルを作成（デフォルトLARGE_FILE_LINES=800行）
+    echo "// Large file" > large.ts
+    for i in {1..850}; do
+        echo "const line$i = $i;" >> large.ts
+    done
+    
+    git add large.ts
+    
+    run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/file-size-check.sh"
+    
+    # 警告は出るが終了コードは0
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "⚠️" ]]  # 大型ファイル
+    [[ "$output" =~ "large.ts" ]]
+}
+
+# テスト26: file-size-check.sh - 環境変数での閾値カスタマイズ
+@test "file-size-check.sh respects new environment variables" {
+    # 700行のファイルを作成
+    echo "// Custom test" > custom.ts
+    for i in {1..700}; do
+        echo "const line$i = $i;" >> custom.ts
+    done
+    
+    git add custom.ts
+    
+    # 閾値をカスタマイズ
+    WARNING_FILE_LINES=500 LARGE_FILE_LINES=600 HUGE_FILE_LINES=800 run "$TEMPLATE_DIR/stage2/node-typescript/scripts/code-review/file-size-check.sh"
+    
+    [ "$status" -eq 1 ]  # 700行は新しいHUGE_FILE_LINES=800を超えないが、LARGE_FILE_LINES=600を超える
+    [[ "$output" =~ "大型ファイル" ]]
+}
+
+# ============================================================================
+# type-hints-check.sh (Python版) のテスト
+# ============================================================================
+
+# テスト27: type-hints-check.sh - 型ヒントなしの関数を検出
+@test "type-hints-check.sh detects missing type hints" {
+    cat > no-hints.py << 'EOF'
+def add(a, b):
+    return a + b
+
+def process(data):
+    return data.upper()
+EOF
+    
+    git add no-hints.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/type-hints-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "型ヒントなし" ]]
+    [[ "$output" =~ "no-hints.py" ]]
+}
+
+# テスト28: type-hints-check.sh - 戻り値の型ヒント不足を検出
+@test "type-hints-check.sh detects missing return type hints" {
+    cat > no-return-type.py << 'EOF'
+def get_name(user: dict):
+    return user.get('name', '')
+EOF
+    
+    git add no-return-type.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/type-hints-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "戻り値の型ヒント" ]]
+}
+
+# テスト29: type-hints-check.sh - 適切な型ヒントは問題なし
+@test "type-hints-check.sh passes with proper type hints" {
+    cat > good-hints.py << 'EOF'
+from typing import Dict, Optional
+
+def get_user_name(user: Dict[str, str]) -> Optional[str]:
+    return user.get('name')
+
+def calculate(x: int, y: int) -> int:
+    return x + y
+EOF
+    
+    git add good-hints.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/type-hints-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "問題は検出されませんでした" ]]
+}
+
+# ============================================================================
+# error-handling-duplication-check.sh (Python版) のテスト
+# ============================================================================
+
+# テスト30: error-handling-duplication-check.sh - print使用を検出
+@test "error-handling-duplication-check.sh Python detects print usage" {
+    cat > print-error.py << 'EOF'
+try:
+    do_something()
+except Exception as e:
+    print(f"Error occurred: {e}")
+    print("Failed to process")
+EOF
+    
+    git add print-error.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 0 ]  # 警告レベル
+    [[ "$output" =~ "print" ]]
+    [[ "$output" =~ "logger.error" ]]
+}
+
+# テスト31: error-handling-duplication-check.sh - bare except検出
+@test "error-handling-duplication-check.sh Python detects bare except" {
+    cat > bare-except.py << 'EOF'
+try:
+    risky_operation()
+except:
+    pass
+EOF
+    
+    git add bare-except.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 1 ]  # エラーレベル
+    [[ "$output" =~ "bare except" ]]
+}
+
+# テスト32: error-handling-duplication-check.sh - logging使用は問題なし
+@test "error-handling-duplication-check.sh Python passes with logging" {
+    cat > good-logging.py << 'EOF'
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    process_data()
+except ValueError as e:
+    logger.error(f"Invalid value: {e}")
+    raise
+EOF
+    
+    git add good-logging.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/error-handling-duplication-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "エラーハンドリング重複は検出されませんでした" ]]
+}
+
+# ============================================================================
+# layer-separation-check.sh (Python版) のテスト
+# ============================================================================
+
+# テスト33: layer-separation-check.sh - サービス層でのDB直接使用を検出
+@test "layer-separation-check.sh Python detects direct DB access" {
+    cat > user_service.py << 'EOF'
+import sqlite3
+
+class UserService:
+    def get_user(self, user_id):
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id=?", (user_id,))
+        return cursor.fetchone()
+EOF
+    
+    git add user_service.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/layer-separation-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "データベース" ]] || [[ "$output" =~ "SQLクエリ" ]]
+    [[ "$output" =~ "user_service.py" ]]
+}
+
+# テスト34: layer-separation-check.sh - requests直接使用を検出
+@test "layer-separation-check.sh Python detects direct API calls" {
+    cat > api_service.py << 'EOF'
+import requests
+
+class ApiService:
+    def fetch_data(self):
+        response = requests.get('https://api.example.com/data')
+        return response.json()
+EOF
+    
+    git add api_service.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/layer-separation-check.sh"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "HTTP/API" ]]
+}
+
+# テスト35: layer-separation-check.sh - 例外許可コメントを尊重
+@test "layer-separation-check.sh Python respects exception comments" {
+    cat > config_service.py << 'EOF'
+class ConfigService:
+    def load_config(self):
+        # ALLOW_FILE_ACCESS: 設定ファイルの直接読み込みが必要
+        with open('config.json', 'r') as f:
+            return json.load(f)
+EOF
+    
+    git add config_service.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/layer-separation-check.sh"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "例外許可" ]] || [[ "$output" =~ "問題なし" ]]
+}
+
+# テスト36: layer-separation-check.sh - リポジトリ層は除外
+@test "layer-separation-check.sh Python excludes repository layer" {
+    cat > user_repository.py << 'EOF'
+import sqlite3
+
+class UserRepository:
+    def get_user(self, user_id):
+        # リポジトリ層なのでDB直接アクセスOK
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id=?", (user_id,))
+        return cursor.fetchone()
+EOF
+    
+    git add user_repository.py
+    
+    run "$TEMPLATE_DIR/stage2/python/scripts/code-review/layer-separation-check.sh"
+    
+    # repositoryファイルは除外される
+    [ "$status" -eq 0 ]
 }

@@ -1,15 +1,14 @@
 #!/bin/bash
 
 # ファイルサイズ監視スクリプト
-# 大きすぎるファイルを検出し、リファクタリングの必要性を示唆
+# 肥大化したファイルを検出し、開発効率と保守性の低下を防ぐ
 
 echo "🔍 ファイルサイズチェック開始..."
 
-# 設定可能な閾値（環境変数で上書き可能）
-WARNING_LINES="${FILE_SIZE_WARNING:-150}"  # 警告レベル
-ERROR_LINES="${FILE_SIZE_ERROR:-300}"      # エラーレベル
-WARNING_SIZE_KB="${FILE_SIZE_WARNING_KB:-50}"  # ファイルサイズ警告（KB）
-ERROR_SIZE_KB="${FILE_SIZE_ERROR_KB:-100}"     # ファイルサイズエラー（KB）
+# 設定: 行数閾値定義（プロジェクトに応じて調整可能）
+LARGE_FILE_LINES=${LARGE_FILE_LINES:-800}        # 大型ファイル警告閾値
+HUGE_FILE_LINES=${HUGE_FILE_LINES:-1500}         # 巨大ファイル阻止閾値
+WARNING_FILE_LINES=${WARNING_FILE_LINES:-600}    # 警告ファイル閾値
 
 # 結果を格納する変数
 VIOLATIONS=0
@@ -27,9 +26,10 @@ fi
 
 echo "📝 チェック対象ファイル数: $(echo "$CHANGED_FILES" | wc -l)"
 echo ""
-echo "📏 閾値設定:"
-echo "  - 警告: ${WARNING_LINES}行 または ${WARNING_SIZE_KB}KB"
-echo "  - エラー: ${ERROR_LINES}行 または ${ERROR_SIZE_KB}KB"
+echo "📏 行数閾値:"
+echo "  - 監視対象: ${WARNING_FILE_LINES}行"
+echo "  - 大型ファイル: ${LARGE_FILE_LINES}行"
+echo "  - 巨大ファイル: ${HUGE_FILE_LINES}行"
 
 # ファイルチェック
 echo ""
@@ -39,7 +39,7 @@ for file in $CHANGED_FILES; do
         # 行数チェック
         line_count=$(wc -l < "$file" | tr -d ' ')
         
-        # ファイルサイズチェック（KB）
+        # ファイルサイズ（参考情報として）
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS
             file_size_kb=$(stat -f%z "$file" | awk '{print int($1/1024)}')
@@ -55,37 +55,28 @@ for file in $CHANGED_FILES; do
         severity=""
         
         # 行数による評価
-        if [ "$line_count" -ge "$ERROR_LINES" ]; then
+        if [ "$line_count" -ge "$HUGE_FILE_LINES" ]; then
             ERROR_FILES+=("$file:$line_count:$effective_lines")
             severity="ERROR"
             VIOLATIONS=$((VIOLATIONS + 1))
-        elif [ "$line_count" -ge "$WARNING_LINES" ]; then
+        elif [ "$line_count" -ge "$LARGE_FILE_LINES" ]; then
             WARNING_FILES+=("$file:$line_count:$effective_lines")
             severity="WARNING"
             VIOLATIONS=$((VIOLATIONS + 1))
-        fi
-        
-        # ファイルサイズによる評価
-        if [ "$file_size_kb" -ge "$ERROR_SIZE_KB" ]; then
-            LARGE_SIZE_FILES+=("$file:${file_size_kb}KB")
-            if [ "$severity" != "ERROR" ]; then
-                severity="ERROR"
-                VIOLATIONS=$((VIOLATIONS + 1))
-            fi
-        elif [ "$file_size_kb" -ge "$WARNING_SIZE_KB" ]; then
-            LARGE_SIZE_FILES+=("$file:${file_size_kb}KB")
-            if [ -z "$severity" ]; then
-                severity="WARNING"
-                VIOLATIONS=$((VIOLATIONS + 1))
-            fi
+        elif [ "$line_count" -ge "$WARNING_FILE_LINES" ]; then
+            WARNING_FILES+=("$file:$line_count:$effective_lines")
+            severity="WATCH"
+            VIOLATIONS=$((VIOLATIONS + 1))
         fi
         
         # 結果表示
         if [ -n "$severity" ]; then
             if [ "$severity" = "ERROR" ]; then
-                echo "  ❌ $file: ${line_count}行 (実効${effective_lines}行), ${file_size_kb}KB"
+                echo "  🚨 巨大ファイル: $file (${line_count}行, 実効${effective_lines}行)"
+            elif [ "$severity" = "WARNING" ]; then
+                echo "  ⚠️  大型ファイル: $file (${line_count}行, 実効${effective_lines}行)"
             else
-                echo "  ⚠️  $file: ${line_count}行 (実効${effective_lines}行), ${file_size_kb}KB"
+                echo "  📋 監視対象: $file (${line_count}行, 実効${effective_lines}行)"
             fi
         fi
     fi
@@ -135,11 +126,11 @@ else
     echo "📋 検出された問題:"
     
     if [ $total_errors -gt 0 ]; then
-        echo "  ❌ エラー: ${total_errors}件（${ERROR_LINES}行以上）"
+        echo "  🚨 巨大ファイル: ${total_errors}件（${HUGE_FILE_LINES}行以上）"
     fi
     
     if [ $total_warnings -gt 0 ]; then
-        echo "  ⚠️  警告: ${total_warnings}件（${WARNING_LINES}行以上）"
+        echo "  ⚠️  大型ファイル: ${total_warnings}件（${LARGE_FILE_LINES}行以上）"
     fi
     
     echo ""
@@ -151,11 +142,13 @@ else
     
     if [ $total_errors -gt 0 ]; then
         echo ""
-        echo "❌ エラーレベルのファイルが存在します。リファクタリングを強く推奨します。"
+        echo "🚨 ${total_errors}件の巨大ファイルが検出されました"
+        echo "🔴 即座に分割対応が必要です！"
         exit 1
     else
         echo ""
-        echo "⚠️  警告レベルのファイルが存在します。将来的なリファクタリングを検討してください。"
+        echo "⚠️  ${total_warnings}件の大型ファイルが検出されました"
+        echo "📝 近い将来に分割を検討してください"
         exit 0
     fi
 fi
